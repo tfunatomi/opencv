@@ -1101,6 +1101,16 @@ Mat    estimateAffine3D(InputArray _from, InputArray _to,
     return transform;
 }
 
+Mat estimateAffine3D(InputArray _src, InputArray _dst, OutputArray _inliers,
+                     const UsacParams &params, bool estimateScale, bool estimateTranslation)
+{
+    CV_INSTRUMENT_REGION();
+    CV_CheckFalse(estimateScale && !estimateTranslation, "Scaling without translation is not supported");
+    return usac::estimatePointSetRegistration(_src, _dst, _inliers,
+        !estimateTranslation ? usac::EstimationMethod::SO3 :
+        estimateScale ? usac::EstimationMethod::SIM3 : usac::EstimationMethod::SE3, params);
+}
+
 int estimateTranslation3D(InputArray _from, InputArray _to,
                           OutputArray _out, OutputArray _inliers,
                           double ransacThreshold, double confidence)
@@ -1221,6 +1231,10 @@ Mat estimateAffinePartial2D(InputArray _from, InputArray _to, OutputArray _inlie
                             const size_t maxIters, const double confidence,
                             const size_t refineIters)
 {
+    if (method >= USAC_DEFAULT && method <= USAC_MAGSAC)
+        return usac::estimatePointSetRegistration(_from, _to, _inliers, usac::EstimationMethod::SIM2,
+            method, ransacReprojThreshold, (int)maxIters, confidence);
+
     Mat from = _from.getMat(), to = _to.getMat();
     const int count = from.checkVector(2);
     bool result = false;
@@ -1301,6 +1315,16 @@ Mat estimateAffinePartial2D(InputArray _from, InputArray _to, OutputArray _inlie
     }
 
     return H;
+}
+
+Mat estimateAffinePartial2D(InputArray _from, InputArray _to, OutputArray _inliers,
+                            const UsacParams &params, bool estimateScale, bool estimateTranslation)
+{
+    CV_INSTRUMENT_REGION();
+    CV_CheckFalse(estimateScale && !estimateTranslation, "Scaling without translation is not supported");
+    return usac::estimatePointSetRegistration(_from, _to, _inliers,
+        !estimateTranslation ? usac::EstimationMethod::SO2 :
+        estimateScale ? usac::EstimationMethod::SIM2 : usac::EstimationMethod::SE2, params);
 }
 
 cv::Vec2d estimateTranslation2D(cv::InputArray _from, cv::InputArray _to,

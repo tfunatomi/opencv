@@ -3214,6 +3214,43 @@ R & t\\
 CV_EXPORTS_W   cv::Mat estimateAffine3D(InputArray src, InputArray dst,
                                         CV_OUT double* scale = nullptr, bool force_rotation = true);
 
+/** @brief Computes an optimal rotation, rigid or similarity transformation between two 3D point sets
+using a robust USAC method.
+
+It computes \f$R, s, t\f$ minimizing \f$\sum_i \| dst_i - (s \cdot R \cdot src_i + t) \|^2\f$ over
+the inliers, where \f$R\f$ is a 3x3 rotation matrix (a reflection is never returned), \f$t\f$ is
+a 3x1 translation vector and \f$s\f$ is a scalar scale value fixed to 1 unless @p estimateScale is
+true. This is a robust counterpart of the overload above: outliers are rejected by USAC with
+Umeyama's algorithm \cite umeyama1991least as minimal (3 points, or 2 points for rotation only)
+and non-minimal solver.
+
+@param src First input 3D point set containing \f$(X,Y,Z)\f$.
+@param dst Second input 3D point set containing \f$(x,y,z)\f$.
+@param inliers Output vector indicating which points are inliers (1-inlier, 0-outlier).
+@param params USAC parameters, see @ref UsacParams. UsacParams::threshold is the maximum Euclidean
+distance between \f$dst_i\f$ and the transformed \f$src_i\f$ to consider the point as an inlier.
+@param estimateScale If false (default), a rigid transformation \f$\mathit{SE}(3)\f$ with
+6 degrees of freedom is estimated (\f$s = 1\f$). If true, a similarity transformation
+\f$\mathit{Sim}(3)\f$ with 7 degrees of freedom is estimated.
+@param estimateTranslation If true (default), the translation \f$t\f$ is estimated. If false,
+a rotation about the origin \f$\mathit{SO}(3)\f$ with 3 degrees of freedom is estimated
+(\f$t = 0\f$, \f$s = 1\f$; 2 points are sampled), which requires @p estimateScale to be false.
+@return 3D transformation matrix \f$3 \times 4\f$ of the form
+\f[T =
+\begin{bmatrix}
+s \cdot R & t\\
+\end{bmatrix}
+\f]
+or empty matrix if the transformation could not be estimated. Note that, unlike the overload above,
+the scale is included in the returned matrix, so it can be applied directly to the points
+(\f$s = \sqrt[3]{\det(sR)}\f$).
+
+@sa estimateAffinePartial2D
+ */
+CV_EXPORTS_W cv::Mat estimateAffine3D(InputArray src, InputArray dst, OutputArray inliers,
+                                      const UsacParams &params, bool estimateScale = false,
+                                      bool estimateTranslation = true);
+
 /** @brief Computes an optimal translation between two 3D point sets.
  *
  * It computes
@@ -3341,6 +3378,8 @@ two 2D point sets.
 @param method Robust method used to compute transformation. The following methods are possible:
 -   @ref RANSAC - RANSAC-based robust method
 -   @ref LMEDS - Least-Median robust method
+-   @ref USAC_DEFAULT, @ref USAC_PARALLEL, @ref USAC_ACCURATE, @ref USAC_FAST, @ref USAC_PROSAC,
+    @ref USAC_MAGSAC - USAC-based robust methods, see @ref UsacParams
 RANSAC is the default method.
 @param ransacReprojThreshold Maximum reprojection error in the RANSAC algorithm to consider
 a point as an inlier. Applies only to RANSAC.
@@ -3379,6 +3418,25 @@ CV_EXPORTS_W cv::Mat estimateAffinePartial2D(InputArray from, InputArray to, Out
                                   int method = RANSAC, double ransacReprojThreshold = 3,
                                   size_t maxIters = 2000, double confidence = 0.99,
                                   size_t refineIters = 10);
+
+/** @overload
+@param from First input 2D point set.
+@param to Second input 2D point set.
+@param inliers Output vector indicating which points are inliers.
+@param params USAC parameters, see @ref UsacParams.
+@param estimateScale If true (default), a similarity transformation \f$\mathit{Sim}(2)\f$ with
+4 degrees of freedom (rotation, translation and uniform scaling) is estimated as the overload above.
+If false, a rigid transformation \f$\mathit{SE}(2)\f$ with 3 degrees of freedom (rotation and
+translation only, i.e. \f$s = 1\f$) is estimated.
+@param estimateTranslation If true (default), the translation is estimated. If false, a rotation
+about the origin \f$\mathit{SO}(2)\f$ with 1 degree of freedom is estimated (zero translation,
+\f$s = 1\f$; 1 point is sampled), which requires @p estimateScale to be false.
+@return Output 2D transformation matrix \f$2 \times 3\f$ or empty matrix if transformation could not
+be estimated.
+*/
+CV_EXPORTS_W cv::Mat estimateAffinePartial2D(InputArray from, InputArray to, OutputArray inliers,
+                                  const UsacParams &params, bool estimateScale = true,
+                                  bool estimateTranslation = true);
 
 /** @brief Computes a pure 2D translation between two 2D point sets.
 
