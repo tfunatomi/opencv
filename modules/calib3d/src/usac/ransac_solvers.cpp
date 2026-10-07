@@ -197,12 +197,13 @@ public:
 
         if (params->getSampler() == SamplingMethod::SAMPLING_PROGRESSIVE_NAPSAC) {
             CV_CheckEQ((int)params->isPnP(), 0, "ProgressiveNAPSAC for PnP is not implemented!");
-            CV_CheckEQ((int)params->isPtsetReg3D(), 0, "ProgressiveNAPSAC for 3D point set registration is not implemented!");
             const auto &cell_number_per_layer = params->getGridCellNumber();
             layers.reserve(cell_number_per_layer.size());
             const auto * const pts = (float *) points.data;
+            // the grid uses the first 4 coordinates of each correspondence (e.g., x1 y1 z1 x2 for 3D point sets)
+            const int dim = points.cols;
             float img1_width = 0, img1_height = 0, img2_width = 0, img2_height = 0;
-            for (int i = 0; i < 4 * points_size; i += 4) {
+            for (int i = 0; i < dim * points_size; i += dim) {
                 if (pts[i    ] > img1_width ) img1_width  = pts[i    ];
                 if (pts[i + 1] > img1_height) img1_height = pts[i + 1];
                 if (pts[i + 2] > img2_width ) img2_width  = pts[i + 2];
@@ -1419,6 +1420,11 @@ public:
 
         if (score_ == ScoreMethod::SCORE_METHOD_MAGSAC)
             polisher = PolishingMethod::MAGSAC;
+
+        // neighborhood samplers draw the rest of a sample around its first point
+        if (sample_size < 2 && (sampler == SamplingMethod::SAMPLING_NAPSAC ||
+                                sampler == SamplingMethod::SAMPLING_PROGRESSIVE_NAPSAC))
+            sampler = SamplingMethod::SAMPLING_UNIFORM;
 
         // for PnP problem we can use only KNN graph
         if (estimator_ == EstimationMethod::P3P || estimator_ == EstimationMethod::P6P) {

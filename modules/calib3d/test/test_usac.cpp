@@ -588,6 +588,42 @@ TEST (usac_PointSetRegistration, rotation_without_translation) {
     }
 }
 
+TEST (usac_PointSetRegistration, samplers) {
+    // every transformation class with every sampler, also in parallel, scored by MAGSAC
+    std::vector<int> gt_inliers;
+    const int pts_size = 1000;
+    cv::Mat pts1, pts2, K1, K2;
+    cv::RNG &rng = cv::theRNG();
+    const std::vector<cv::SamplingMethod> samplers = {cv::SAMPLING_UNIFORM, cv::SAMPLING_PROSAC,
+            cv::SAMPLING_NAPSAC, cv::SAMPLING_PROGRESSIVE_NAPSAC};
+    for (int dim : {2, 3}) for (bool is_scale : {false, true}) for (bool is_translation : {false, true}) {
+        const TestSolver test_case = dim == 2 ?
+            (is_translation ? (is_scale ? TestSolver::SIM2 : TestSolver::SE2) : (is_scale ? TestSolver::ScaledSO2 : TestSolver::SO2)) :
+            (is_translation ? (is_scale ? TestSolver::SIM3 : TestSolver::SE3) : (is_scale ? TestSolver::ScaledSO3 : TestSolver::SO3));
+        const int inl_size = generatePoints(rng, pts1, pts2, K1, K2, false /*two calib*/,
+                  pts_size, test_case, 0.5, 0.15 /*noise std*/, gt_inliers);
+        for (auto sampler : samplers) for (bool is_parallel : {false, true}) {
+            cv::UsacParams params;
+            params.threshold = 2.;
+            params.sampler = sampler;
+            params.neighborsSearch = cv::NEIGH_FLANN_KNN;
+            params.score = cv::SCORE_METHOD_MAGSAC;
+            params.loMethod = cv::LOCAL_OPTIM_SIGMA;
+            params.isParallel = is_parallel;
+            cv::Mat mask, A;
+            if (dim == 2)
+                A = cv::estimateAffinePartial2D(pts1, pts2, mask, params, is_scale, is_translation);
+            else A = cv::estimateAffine3D(pts1, pts2, mask, params, is_scale, is_translation);
+            SCOPED_TRACE(cv::format("dim=%d scale=%d translation=%d sampler=%d parallel=%d",
+                                    dim, is_scale, is_translation, (int)sampler, is_parallel));
+            checkRigidOrSimilarity(A, is_scale);
+            cv::Mat row = cv::Mat::zeros(1, dim+1, CV_64F); row.at<double>(dim) = 1;
+            cv::vconcat(A, row, A);
+            checkInliersMask(TestSolver::Homogr /*use homography error*/, inl_size, 2., pts1, pts2, A, mask);
+        }
+    }
+}
+
 TEST(usac_testUsacParams, accuracy) {
     std::vector<int> gt_inliers;
     const int pts_size = 150000;
