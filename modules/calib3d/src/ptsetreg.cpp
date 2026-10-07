@@ -1105,10 +1105,10 @@ Mat estimateAffine3D(InputArray _src, InputArray _dst, OutputArray _inliers,
                      const UsacParams &params, bool estimateScale, bool estimateTranslation)
 {
     CV_INSTRUMENT_REGION();
-    CV_CheckFalse(estimateScale && !estimateTranslation, "Scaling without translation is not supported");
-    return usac::estimatePointSetRegistration(_src, _dst, _inliers,
-        !estimateTranslation ? usac::EstimationMethod::SO3 :
-        estimateScale ? usac::EstimationMethod::SIM3 : usac::EstimationMethod::SE3, params);
+    const usac::EstimationMethod estimator = estimateTranslation ?
+        (estimateScale ? usac::EstimationMethod::SIM3 : usac::EstimationMethod::SE3) :
+        (estimateScale ? usac::EstimationMethod::SCALED_SO3 : usac::EstimationMethod::SO3);
+    return usac::estimatePointSetRegistration(_src, _dst, _inliers, estimator, params);
 }
 
 int estimateTranslation3D(InputArray _from, InputArray _to,
@@ -1321,10 +1321,10 @@ Mat estimateAffinePartial2D(InputArray _from, InputArray _to, OutputArray _inlie
                             const UsacParams &params, bool estimateScale, bool estimateTranslation)
 {
     CV_INSTRUMENT_REGION();
-    CV_CheckFalse(estimateScale && !estimateTranslation, "Scaling without translation is not supported");
-    return usac::estimatePointSetRegistration(_from, _to, _inliers,
-        !estimateTranslation ? usac::EstimationMethod::SO2 :
-        estimateScale ? usac::EstimationMethod::SIM2 : usac::EstimationMethod::SE2, params);
+    const usac::EstimationMethod estimator = estimateTranslation ?
+        (estimateScale ? usac::EstimationMethod::SIM2 : usac::EstimationMethod::SE2) :
+        (estimateScale ? usac::EstimationMethod::SCALED_SO2 : usac::EstimationMethod::SO2);
+    return usac::estimatePointSetRegistration(_from, _to, _inliers, estimator, params);
 }
 
 cv::Vec2d estimateTranslation2D(cv::InputArray _from, cv::InputArray _to,

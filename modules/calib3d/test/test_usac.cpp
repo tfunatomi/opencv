@@ -6,7 +6,7 @@
 
 namespace opencv_test { namespace {
 
-enum TestSolver { Homogr, Fundam, Essen, PnP, Affine, SO2, SE2, SIM2, SO3, SE3, SIM3 };
+enum TestSolver { Homogr, Fundam, Essen, PnP, Affine, SO2, SE2, SIM2, ScaledSO2, SO3, SE3, SIM3, ScaledSO3 };
 /*
 * rng -- reference to random generator
 * pts1 -- 2xN image points
@@ -112,22 +112,25 @@ static int generatePoints (cv::RNG &rng, cv::Mat &pts1, cv::Mat &pts2, cv::Mat &
         return inl_size;
     } else if (test_case == TestSolver::Affine ||
                test_case == TestSolver::SO2 || test_case == TestSolver::SE2 || test_case == TestSolver::SIM2 ||
-               test_case == TestSolver::SO3 || test_case == TestSolver::SE3 || test_case == TestSolver::SIM3) {
+               test_case == TestSolver::ScaledSO2 ||
+               test_case == TestSolver::SO3 || test_case == TestSolver::SE3 || test_case == TestSolver::SIM3 ||
+               test_case == TestSolver::ScaledSO3) {
     } else
         CV_Error(cv::Error::StsBadArg, "Unknown solver!");
 
     if (test_case != TestSolver::PnP) {
         // project 3D point on image plane
         // use two relative scenes. The first camera is P1 = K1 [I | 0], the second P2 = K2 [R | t]
-        if (test_case == TestSolver::SO2 || test_case == TestSolver::SE2 || test_case == TestSolver::SIM2) {
+        if (test_case == TestSolver::SO2 || test_case == TestSolver::SE2 || test_case == TestSolver::SIM2 ||
+            test_case == TestSolver::ScaledSO2) {
             pts1 = cv::Mat(2, inl_size, pts_type);
             rng.fill(pts1, cv::RNG::UNIFORM, 0, 1000);
             cv::Mat sc = cv::Mat::eye(3, 3, pts_type);
-            if (test_case == TestSolver::SIM2) {
+            if (test_case == TestSolver::SIM2 || test_case == TestSolver::ScaledSO2) {
                 sc.at<double>(0,0) = sc.at<double>(1,1) = rng.uniform(1., 5.);
             }
             cv::Matx33d tr(1,0,rng.uniform(50., 500.),0,1,rng.uniform(50., 500.), 0, 0, 1);
-            if (test_case == TestSolver::SO2)
+            if (test_case == TestSolver::SO2 || test_case == TestSolver::ScaledSO2)
                 tr = cv::Matx33d::eye();
             const double phi = rng.uniform(0., CV_PI);
             cv::Matx33d rot(cos(phi), -sin(phi),0, sin(phi), cos(phi),0, 0, 0, 1);
@@ -136,15 +139,16 @@ static int generatePoints (cv::RNG &rng, cv::Mat &pts1, cv::Mat &pts2, cv::Mat &
             pts2 = A * points3d;
             // get 2D points
             pts1 = pts1.rowRange(0,2); pts2 = pts2.rowRange(0,2);
-        } else if (test_case == TestSolver::SO3 || test_case == TestSolver::SE3 || test_case == TestSolver::SIM3) {
+        } else if (test_case == TestSolver::SO3 || test_case == TestSolver::SE3 || test_case == TestSolver::SIM3 ||
+                   test_case == TestSolver::ScaledSO3) {
             pts1 = cv::Mat(3, inl_size, pts_type);
             rng.fill(pts1, cv::RNG::UNIFORM, 0, 1000);
             cv::Mat sc = cv::Mat::eye(4, 4, pts_type);
-            if (test_case == TestSolver::SIM3) {
+            if (test_case == TestSolver::SIM3 || test_case == TestSolver::ScaledSO3) {
                 sc.at<double>(0,0) = sc.at<double>(1,1) = sc.at<double>(2,2) = rng.uniform(1., 5.);
             }
             cv::Matx44d tr(1,0,0,rng.uniform(50., 500.), 0,1,0,rng.uniform(50., 500.), 0,0,1,rng.uniform(50., 500.), 0,0,0,1);
-            if (test_case == TestSolver::SO3)
+            if (test_case == TestSolver::SO3 || test_case == TestSolver::ScaledSO3)
                 tr = cv::Matx44d::eye();
             cv::Mat rot = cv::Mat::eye(4, 4, pts_type);
             cv::Matx31d rvec(rng.uniform(0., CV_PI), rng.uniform(0., CV_PI), rng.uniform(0., CV_PI));
@@ -554,25 +558,27 @@ TEST (usac_Affine3D, rigid_and_similarity) {
     }
 }
 
-TEST (usac_PointSetRegistration, rotation_only) {
+TEST (usac_PointSetRegistration, rotation_without_translation) {
     std::vector<int> gt_inliers;
     const int pts_size = 2000;
     cv::Mat pts1, pts2, K1, K2;
     cv::RNG &rng = cv::theRNG();
     const std::vector<int> flags = {USAC_DEFAULT, USAC_ACCURATE, USAC_PROSAC, USAC_FAST, USAC_MAGSAC};
-    for (int dim : {2, 3}) {
+    for (int dim : {2, 3}) for (bool is_scale : {false, true}) {
+        const TestSolver test_case = dim == 2 ? (is_scale ? TestSolver::ScaledSO2 : TestSolver::SO2) :
+                                                (is_scale ? TestSolver::ScaledSO3 : TestSolver::SO3);
         for (double inl_ratio = 0.1; inl_ratio < 0.91; inl_ratio += 0.1) {
             int inl_size = generatePoints(rng, pts1, pts2, K1, K2, false /*two calib*/,
-                      pts_size, dim == 2 ? TestSolver::SO2 : TestSolver::SO3, inl_ratio, 0.15 /*noise std*/, gt_inliers);
+                      pts_size, test_case, inl_ratio, 0.15 /*noise std*/, gt_inliers);
             const double conf = 0.99, thr = 2., max_iters = 1.3 * log(1 - conf) /
                     log(1 - std::pow(inl_ratio, dim - 1 /* sample size */));
             for (auto flag : flags) {
                 cv::Mat mask, A;
                 const cv::UsacParams params = getUsacParams(flag, thr, (int)max_iters + 1, conf);
                 if (dim == 2)
-                    A = cv::estimateAffinePartial2D(pts1, pts2, mask, params, false, false);
-                else A = cv::estimateAffine3D(pts1, pts2, mask, params, false, false);
-                checkRigidOrSimilarity(A, false);
+                    A = cv::estimateAffinePartial2D(pts1, pts2, mask, params, is_scale, false);
+                else A = cv::estimateAffine3D(pts1, pts2, mask, params, is_scale, false);
+                checkRigidOrSimilarity(A, is_scale);
                 EXPECT_EQ(cv::norm(A.col(dim)), 0.);
                 cv::Mat row = cv::Mat::zeros(1, dim+1, CV_64F); row.at<double>(dim) = 1;
                 cv::vconcat(A, row, A);
@@ -580,8 +586,6 @@ TEST (usac_PointSetRegistration, rotation_only) {
             }
         }
     }
-    cv::Mat mask;
-    EXPECT_THROW(cv::estimateAffinePartial2D(pts1.rowRange(0, 2), pts2.rowRange(0, 2), mask, cv::UsacParams(), true, false), cv::Exception);
 }
 
 TEST(usac_testUsacParams, accuracy) {

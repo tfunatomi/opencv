@@ -736,13 +736,13 @@ public:
     explicit PointSetRegistrationMinimalSolverImpl (const Mat &points_, int dim_, bool is_scale_, bool is_rotation_only_) :
         points_mat(&points_), dim(dim_), is_scale(is_scale_), is_rotation_only(is_rotation_only_) {
         CV_Assert(dim == 2 || dim == 3);
-        CV_Assert(!(is_scale && is_rotation_only));
     }
     int estimate (const std::vector<int> &sample, std::vector<Mat> &models) const override {
         return estimateUmeyama(dim, (float *) points_mat->data, sample, getSampleSize(),
                 is_scale, is_rotation_only, std::vector<double>(), models);
     }
-    // rotation only: 1 point for 2D, 2 points for 3D; otherwise 2 points for 2D, 3 non-collinear points for 3D
+    // (scaled) rotation about the origin: 1 point for 2D, 2 points for 3D;
+    // otherwise 2 points for 2D, 3 non-collinear points for 3D
     int getSampleSize() const override { return is_rotation_only ? dim - 1 : dim; }
     int getMaxNumberOfSolutions () const override { return 1; }
 };

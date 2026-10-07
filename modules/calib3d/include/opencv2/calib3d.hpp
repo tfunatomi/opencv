@@ -3221,7 +3221,7 @@ It computes \f$R, s, t\f$ minimizing \f$\sum_i \| dst_i - (s \cdot R \cdot src_i
 the inliers, where \f$R\f$ is a 3x3 rotation matrix (a reflection is never returned), \f$t\f$ is
 a 3x1 translation vector and \f$s\f$ is a scalar scale value fixed to 1 unless @p estimateScale is
 true. This is a robust counterpart of the overload above: outliers are rejected by USAC with
-Umeyama's algorithm \cite umeyama1991least as minimal (3 points, or 2 points for rotation only)
+Umeyama's algorithm \cite umeyama1991least as minimal (3 points, or 2 points without translation)
 and non-minimal solver.
 
 @param src First input 3D point set containing \f$(X,Y,Z)\f$.
@@ -3233,8 +3233,8 @@ distance between \f$dst_i\f$ and the transformed \f$src_i\f$ to consider the poi
 6 degrees of freedom is estimated (\f$s = 1\f$). If true, a similarity transformation
 \f$\mathit{Sim}(3)\f$ with 7 degrees of freedom is estimated.
 @param estimateTranslation If true (default), the translation \f$t\f$ is estimated. If false,
-a rotation about the origin \f$\mathit{SO}(3)\f$ with 3 degrees of freedom is estimated
-(\f$t = 0\f$, \f$s = 1\f$; 2 points are sampled), which requires @p estimateScale to be false.
+\f$t = 0\f$ and a rotation about the origin \f$\mathit{SO}(3)\f$ with 3 degrees of freedom (or a scaled
+rotation with 4 degrees of freedom if @p estimateScale is true) is estimated; 2 points are sampled.
 @return 3D transformation matrix \f$3 \times 4\f$ of the form
 \f[T =
 \begin{bmatrix}
@@ -3428,9 +3428,9 @@ CV_EXPORTS_W cv::Mat estimateAffinePartial2D(InputArray from, InputArray to, Out
 4 degrees of freedom (rotation, translation and uniform scaling) is estimated as the overload above.
 If false, a rigid transformation \f$\mathit{SE}(2)\f$ with 3 degrees of freedom (rotation and
 translation only, i.e. \f$s = 1\f$) is estimated.
-@param estimateTranslation If true (default), the translation is estimated. If false, a rotation
-about the origin \f$\mathit{SO}(2)\f$ with 1 degree of freedom is estimated (zero translation,
-\f$s = 1\f$; 1 point is sampled), which requires @p estimateScale to be false.
+@param estimateTranslation If true (default), the translation is estimated. If false, the translation
+is zero and a rotation about the origin \f$\mathit{SO}(2)\f$ with 1 degree of freedom (or a scaled
+rotation with 2 degrees of freedom if @p estimateScale is true) is estimated; 1 point is sampled.
 @return Output 2D transformation matrix \f$2 \times 3\f$ or empty matrix if transformation could not
 be estimated.
 */

@@ -373,8 +373,10 @@ public:
             degeneracy = makePtr<Degeneracy>();
             const EstimationMethod est = params->getEstimator();
             const int dim = params->isPtsetReg3D() ? 3 : 2;
-            const bool is_scale = est == EstimationMethod::SIM2 || est == EstimationMethod::SIM3,
-                       is_rotation_only = est == EstimationMethod::SO2 || est == EstimationMethod::SO3;
+            const bool is_scale = est == EstimationMethod::SIM2 || est == EstimationMethod::SIM3 ||
+                                  est == EstimationMethod::SCALED_SO2 || est == EstimationMethod::SCALED_SO3,
+                       is_rotation_only = est == EstimationMethod::SO2 || est == EstimationMethod::SO3 ||
+                                  est == EstimationMethod::SCALED_SO2 || est == EstimationMethod::SCALED_SO3;
             min_solver = PointSetRegistrationMinimalSolver::create(points, dim, is_scale, is_rotation_only);
             non_min_solver = PointSetRegistrationNonMinimalSolver::create(points, dim, is_scale, is_rotation_only);
             estimator = AffineEstimator::create(min_solver, non_min_solver);
@@ -1378,11 +1380,13 @@ public:
                 avg_num_models = 1; model_est_to_ver_time = 50;
                 sample_size = 3; est_error = ErrorMetric ::FORW_REPR_ERR; break;
             case (EstimationMethod::SO2):
+            case (EstimationMethod::SCALED_SO2):
                 avg_num_models = 1; model_est_to_ver_time = 100;
                 sample_size = 1; est_error = ErrorMetric ::FORW_REPR_ERR; break;
             case (EstimationMethod::SE2):
             case (EstimationMethod::SIM2):
             case (EstimationMethod::SO3):
+            case (EstimationMethod::SCALED_SO3):
                 avg_num_models = 1; model_est_to_ver_time = 100;
                 sample_size = 2; est_error = ErrorMetric ::FORW_REPR_ERR; break;
             case (EstimationMethod::SE3):
@@ -1502,11 +1506,11 @@ public:
     }
     bool isPtsetReg () const override {
         return estimator == EstimationMethod::SO2 || estimator == EstimationMethod::SE2 ||
-               estimator == EstimationMethod::SIM2 || isPtsetReg3D();
+               estimator == EstimationMethod::SIM2 || estimator == EstimationMethod::SCALED_SO2 || isPtsetReg3D();
     }
     bool isPtsetReg3D () const override {
         return estimator == EstimationMethod::SO3 || estimator == EstimationMethod::SE3 ||
-               estimator == EstimationMethod::SIM3;
+               estimator == EstimationMethod::SIM3 || estimator == EstimationMethod::SCALED_SO3;
     }
 };
 

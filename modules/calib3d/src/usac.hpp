@@ -7,7 +7,8 @@
 
 namespace cv { namespace usac {
 enum EstimationMethod { HOMOGRAPHY=0, FUNDAMENTAL=1, FUNDAMENTAL8=2, ESSENTIAL=3, AFFINE=4, P3P=5, P6P=6,
-                        SE2=7, SIM2=8, SO3=9, SE3=10, SIM3=11, SO2=12};
+                        SE2=7, SIM2=8, SO3=9, SE3=10, SIM3=11, SO2=12,
+                        SCALED_SO2=13, SCALED_SO3=14};
 enum VerificationMethod { NULL_VERIFIER=0, SPRT_VERIFIER=1, ASPRT=2 };
 enum ErrorMetric {DIST_TO_LINE=0, SAMPSON_ERR=1, SGD_ERR=2, SYMM_REPR_ERR=3, FORW_REPR_ERR=4, RERPOJ=5};
 enum MethodSolver { GEM_SOLVER=0, SVD_SOLVER=1 };
@@ -142,7 +143,8 @@ public:
 
 //-------------------------- RIGID / SIMILARITY -----------------------
 // Rigid (rotation + translation) or similarity (+ uniform scale) transformation between
-// two 2D or 3D point sets, i.e., SE2, SIM2, SE3, SIM3, or rotation only about the origin (SO2, SO3).
+// two 2D or 3D point sets, i.e., SE2, SIM2, SE3, SIM3, or (scaled) rotation about the origin
+// (SO2, SO3, SCALED_SO2, SCALED_SO3).
 class PointSetRegistrationMinimalSolver : public MinimalSolver {
 public:
     static Ptr<PointSetRegistrationMinimalSolver> create(const Mat &points_, int dim, bool is_scale, bool is_rotation_only);
@@ -888,7 +890,7 @@ public:
     virtual bool isHomography () const = 0;
     virtual bool isEssential () const = 0;
     virtual bool isPnP () const = 0;
-    // rigid or similarity point set registration (SO2, SE2, SIM2, SO3, SE3, SIM3)
+    // rotation, rigid or similarity point set registration (SO2, SE2, SIM2, SCALED_SO2 and 3D ones)
     virtual bool isPtsetReg () const = 0;
     virtual bool isPtsetReg3D () const = 0;
 
@@ -989,7 +991,8 @@ Mat estimateAffine2D(InputArray from, InputArray to, OutputArray inliers,
      int method, double ransacReprojThreshold, int maxIters,
      double confidence, int refineIters);
 
-// Rotation (SO2, SO3), rigid (SE2, SE3) or similarity (SIM2, SIM3) transformation between two point sets.
+// Rotation (SO2, SO3), scaled rotation (SCALED_SO2, SCALED_SO3), rigid (SE2, SE3) or
+// similarity (SIM2, SIM3) transformation between two point sets.
 // Returns 2x3 (2D) or 3x4 (3D) matrix, or empty matrix if the transformation could not be estimated.
 Mat estimatePointSetRegistration(InputArray from, InputArray to, OutputArray inliers,
      EstimationMethod estimator, int method, double ransacReprojThreshold, int maxIters,
